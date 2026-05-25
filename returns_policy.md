@@ -1,0 +1,6 @@
+# Returns Policy
+
+Customers can request a return within 30 days of delivery.
+Items must be unused and in original packaging.
+Refunds are processed within 5 business days after inspection.
+Final-sale items are not eligible for return.
