@@ -1,0 +1,14 @@
+# LLM Providers
+openai>=1.0.0
+ollama>=0.1.6
+
+# Core Dependencies
+python-dotenv>=1.0.1
+pydantic>=2.7.0
+
+# Vector Store for Local LLM
+chromadb>=0.4.22
+sentence-transformers>=2.3.1
+
+# Utilities
+rich>=13.7.0
