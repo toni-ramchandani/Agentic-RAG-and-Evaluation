@@ -1,4 +1,4 @@
-# 🤖 Order Support Agent v2
+# Order Support Agent v2
 
 **An AI-powered customer support chatbot that runs on both OpenAI and local LLMs (Ollama)**
 
@@ -7,7 +7,7 @@
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 1. [Overview](#-overview)
 2. [Features](#-features)
@@ -30,7 +30,7 @@
 
 ---
 
-## 🎯 Overview
+## Overview
 
 The **Order Support Agent** is a conversational AI assistant designed to handle e-commerce customer support queries. It combines:
 
@@ -61,11 +61,11 @@ The **Order Support Agent** is a conversational AI assistant designed to handle 
 ## ✨ Features
 
 ### Core Capabilities
-- 🗣️ **Natural Conversations**: Maintains context across multiple turns
-- 📚 **Knowledge Base Integration**: Searches policy documents for accurate information
-- 🔧 **Tool Execution**: Calls functions to perform actions (order lookup, ticket creation)
-- 🎨 **Beautiful CLI**: Rich terminal UI with colors and formatting
-- 🔄 **Dual Provider Support**: Switch between OpenAI and Ollama seamlessly
+-  **Natural Conversations**: Maintains context across multiple turns
+-  **Knowledge Base Integration**: Searches policy documents for accurate information
+-  **Tool Execution**: Calls functions to perform actions (order lookup, ticket creation)
+-  **Beautiful CLI**: Rich terminal UI with colors and formatting
+-  **Dual Provider Support**: Switch between OpenAI and Ollama seamlessly
 
 ### Technical Features
 - **Abstract Provider Pattern**: Easy to add new LLM providers
@@ -77,7 +77,7 @@ The **Order Support Agent** is a conversational AI assistant designed to handle 
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -135,7 +135,7 @@ The **Order Support Agent** is a conversational AI assistant designed to handle 
 
 ---
 
-## 📦 Installation
+## Installation
 
 ### Prerequisites
 
@@ -196,7 +196,7 @@ python app.py
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Using Ollama (Local, Free)
 
@@ -453,7 +453,7 @@ evalExperiments/
 
 ---
 
-## 📚 Knowledge Base
+## Knowledge Base
 
 ### Document Structure
 
@@ -727,7 +727,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 ---
 
-## 💰 Performance & Costs
+## Performance & Costs
 
 ### OpenAI Costs (Estimates)
 
@@ -889,7 +889,7 @@ def chat(message: str):
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Please:
 
@@ -929,7 +929,7 @@ MIT License - feel free to use this for any purpose.
 
 ---
 
-## 📞 Support
+## Support
 
 - **Issues**: Open a GitHub issue
 - **Questions**: Start a discussion
@@ -937,7 +937,7 @@ MIT License - feel free to use this for any purpose.
 
 ---
 
-## 🗺️ Roadmap
+## Roadmap
 
 ### v2.1 (Current)
 - ✅ OpenAI support
