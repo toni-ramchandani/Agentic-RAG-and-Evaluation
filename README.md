@@ -1,4 +1,4 @@
-# Order Support Agent v2
+# Order Support Agent
 
 **An AI-powered customer support chatbot that runs on both OpenAI and local LLMs (Ollama)**
 
