@@ -1,4 +1,4 @@
- q# Order Support Agent
+ # Order Support Agent
 
 **An AI-powered customer support chatbot that runs on both OpenAI and local LLMs (Ollama)**
 
@@ -91,7 +91,7 @@ The **Order Support Agent** is a conversational AI assistant designed to handle 
                       ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                  OrderSupportAgent                          │
-│  • Manages conversation history                            │
+│  • Manages conversation history                             │
 │  • Routes to appropriate LLM provider                       │
 │  • Orchestrates tool calls                                  │
 └─────────────────────┬───────────────────────────────────────┘
