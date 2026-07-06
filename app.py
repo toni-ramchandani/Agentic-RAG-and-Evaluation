@@ -6,7 +6,7 @@ A small agentic RAG demo with:
 - Ollama provider support
 - Local ChromaDB retrieval for Ollama
 - OpenAI Vector Store / file_search support for OpenAI
-- Tool calling for order lookup and support-ticket creation
+- Tool calling for support-ticket creation
 """
 
 from __future__ import annotations
@@ -39,19 +39,21 @@ You are an order support assistant for an e-commerce company.
 
 You can:
 - Answer general policy and FAQ questions using the knowledge base.
-- Use get_order_status only when the user asks about a specific order and provides an order ID.
+- Answer order-status questions using the knowledge base. Order records are stored in order.md and retrieved through ChromaDB.
 - Use create_support_ticket only when the user reports an unresolved issue such as a damaged item, delayed package, missing item, refund problem, or return problem.
 - Ask for an order ID only when the user is asking about a specific order and the order ID is missing.
 
 Critical rules:
 - For general policy questions, answer directly from the knowledge base. Do not ask for an order ID.
+- For order-status questions with an order ID, use the retrieved order.md context. Do not call get_order_status.
 - For "How long does shipping take?", answer using the shipping policy.
 - For "Can I return an item?", answer using the return policy.
 - Never invent order details.
 - Never invent policy details.
+- If an order ID is not found in the retrieved knowledge-base context, say that the order was not found in the knowledge base.
 - If required information is missing, ask a short clarifying question.
 - Do not claim an action happened unless a tool result confirms it.
-- If a tool result is present, use that result to answer the user. Do not call the same tool again.
+- If a support-ticket tool result is present, use that result to answer the user. Do not call the same tool again.
 - Keep answers concise, operational, and helpful.
 """.strip()
 
@@ -61,7 +63,6 @@ class AgentAction(BaseModel):
 
     action: Literal[
         "answer_directly",
-        "get_order_status",
         "create_support_ticket",
         "ask_clarification",
     ] = Field(description="The next action the agent should take.")
@@ -103,22 +104,6 @@ class OpenAIProvider(LLMProvider):
 
     def _build_tools(self) -> list[dict[str, Any]]:
         tools: list[dict[str, Any]] = [
-            {
-                "type": "function",
-                "name": "get_order_status",
-                "description": "Get the status and details of a customer order by order ID.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "order_id": {
-                            "type": "string",
-                            "description": "The order ID, for example ORD-1001.",
-                        }
-                    },
-                    "required": ["order_id"],
-                    "additionalProperties": False,
-                },
-            },
             {
                 "type": "function",
                 "name": "create_support_ticket",
@@ -255,11 +240,18 @@ class OllamaProvider(LLMProvider):
             ) from exc
 
     def search_knowledge_base(self, query: str) -> str:
+        order_id = self._extract_order_id(query)
+
+        if order_id:
+            exact_order_context = self._search_order_by_id(order_id)
+            if exact_order_context:
+                return exact_order_context
+
         query_embedding = self.embedding_model.encode(query).tolist()
 
         results = self.collection.query(
             query_embeddings=[query_embedding],
-            n_results=3,
+            n_results=5,
             include=["documents", "metadatas", "distances"],
         )
 
@@ -275,6 +267,31 @@ class OllamaProvider(LLMProvider):
             source = metadata.get("source", "unknown") if metadata else "unknown"
             context_parts.append(
                 f"Source: {source}\nDistance: {distance:.4f}\nContent:\n{document}"
+            )
+
+        return "\n\n---\n\n".join(context_parts)
+
+    def _search_order_by_id(self, order_id: str) -> str:
+        try:
+            results = self.collection.get(
+                where={"order_id": order_id},
+                include=["documents", "metadatas"],
+            )
+        except Exception:
+            return ""
+
+        documents = results.get("documents", [])
+        metadatas = results.get("metadatas", [])
+
+        if not documents:
+            return ""
+
+        context_parts: list[str] = []
+        for document, metadata in zip(documents, metadatas):
+            source = metadata.get("source", "unknown") if metadata else "unknown"
+            chunk = metadata.get("chunk", "unknown") if metadata else "unknown"
+            context_parts.append(
+                f"Source: {source}\nChunk: {chunk}\nMatch: exact order_id metadata\nContent:\n{document}"
             )
 
         return "\n\n---\n\n".join(context_parts)
@@ -299,17 +316,6 @@ class OllamaProvider(LLMProvider):
             return self._generate_final_answer(messages, knowledge_context), []
 
         action = self._route_action(last_user_message, knowledge_context)
-
-        if action.action == "get_order_status":
-            if not action.order_id:
-                return "Please share your order ID so I can check the status.", []
-
-            return "", [
-                {
-                    "name": "get_order_status",
-                    "arguments": {"order_id": action.order_id},
-                }
-            ]
 
         if action.action == "create_support_ticket":
             if not action.order_id:
@@ -347,25 +353,24 @@ Return only valid JSON. Do not use markdown. Do not explain.
 Allowed actions:
 1. answer_directly
    Use this for general FAQ/policy questions such as shipping duration, return policy, refund policy, cancellation policy, tracking policy.
+   Also use this for order-status questions when the user provides an order ID, because order records are retrieved from order.md through ChromaDB.
 
-2. get_order_status
-   Use this only when the user asks about a specific order and provides an order ID.
-
-3. create_support_ticket
+2. create_support_ticket
    Use this only when the user reports an issue that needs support action, such as damaged item, delayed order, missing item, refund issue, wrong item, or return problem.
    If the user provides an order ID, include it.
    If no order ID is provided, use ask_clarification.
 
-4. ask_clarification
+3. ask_clarification
    Use this when the user asks about their own order but no order ID is provided.
 
 Important:
 - Do not ask for an order ID for general policy questions.
 - "How long does shipping take?" is answer_directly.
 - "Can I return an item after delivery?" is answer_directly.
-- "Check order ORD-1001" is get_order_status.
+- "Check order ORD-1001" is answer_directly using retrieved order.md context.
 - "Where is my order?" is ask_clarification.
 - "I received a damaged item for order ORD-1001" is create_support_ticket.
+- Never use get_order_status. Order-status answers must come from the knowledge-base context.
 
 Knowledge context, if any:
 {knowledge_context or "No retrieved context."}
@@ -375,7 +380,7 @@ User message:
 
 Return JSON with this schema:
 {{
-  "action": "answer_directly|get_order_status|create_support_ticket|ask_clarification",
+  "action": "answer_directly|create_support_ticket|ask_clarification",
   "order_id": "ORD-XXXX or null",
   "issue_type": "damaged_item|delayed_order|missing_item|refund_issue|return_request|other|null",
   "summary": "short issue summary or null",
@@ -428,7 +433,9 @@ Return JSON with this schema:
                     "Answer the user's latest question. "
                     "Use the knowledge-base context and any tool result available in the conversation. "
                     "For general policy questions, do not ask for an order ID. "
-                    "If a tool result says an order was found, summarize the order status clearly. "
+                    "For order-status questions, answer only from retrieved order.md context. "
+                    "If the requested order ID is not present in the retrieved context, say you could not find that order in the knowledge base. "
+                    "Never invent order status, delivery date, tracking number, or carrier. "
                     "If a support ticket was created, provide the ticket ID and status. "
                     "Do not output JSON."
                 ),
@@ -504,10 +511,10 @@ Return JSON with this schema:
             return AgentAction(action="answer_directly")
 
         if order_id and any(keyword in lower for keyword in order_lookup_keywords):
-            return AgentAction(action="get_order_status", order_id=order_id)
+            return AgentAction(action="answer_directly", order_id=order_id)
 
         if order_id and lower.startswith(("check", "track")):
-            return AgentAction(action="get_order_status", order_id=order_id)
+            return AgentAction(action="answer_directly", order_id=order_id)
 
         if "order" in lower and not order_id:
             return AgentAction(
@@ -705,7 +712,7 @@ def main() -> None:
 
         if user_input.lower() == "reset":
             agent.reset()
-            console.print("[yellow]Conversation history reset.[/yellow]")
+            console.print("[yellow]Conversation history reset.")
             continue
 
         if not user_input:
