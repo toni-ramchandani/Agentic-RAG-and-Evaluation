@@ -58,6 +58,32 @@ Critical rules:
 """.strip()
 
 
+def extract_order_id(text: str) -> str | None:
+    match = re.search(r"\bORD-\d{4,}\b", text, flags=re.IGNORECASE)
+    return match.group(0).upper() if match else None
+
+
+def is_support_ticket_request(text: str) -> bool:
+    lower = text.lower()
+
+    ticket_keywords = [
+        "damaged",
+        "broken",
+        "missing item",
+        "wrong item",
+        "refund issue",
+        "return problem",
+        "not received",
+        "lost",
+        "create ticket",
+        "raise ticket",
+        "support ticket",
+        "complaint",
+    ]
+
+    return any(keyword in lower for keyword in ticket_keywords)
+
+
 class AgentAction(BaseModel):
     """Structured action selected by the local Ollama router."""
 
@@ -81,12 +107,10 @@ class LLMProvider(ABC):
         messages: list[dict[str, str]],
         knowledge_context: str = "",
     ) -> tuple[str, list[dict[str, Any]]]:
-        """Return final text plus any requested tool calls."""
         raise NotImplementedError
 
     @abstractmethod
     def search_knowledge_base(self, query: str) -> str:
-        """Return relevant knowledge-base context for the query."""
         raise NotImplementedError
 
 
@@ -141,8 +165,8 @@ class OpenAIProvider(LLMProvider):
         return tools
 
     def _messages_to_input(self, messages: list[dict[str, str]]) -> list[dict[str, Any]]:
-        """Convert chat-style messages to Responses API input format."""
         converted: list[dict[str, Any]] = []
+
         for message in messages:
             role = message["role"]
             content = message["content"]
@@ -232,7 +256,9 @@ class OllamaProvider(LLMProvider):
         try:
             self.collection = self.chroma_client.get_collection(self.collection_name)
             count = self.collection.count()
-            console.print(f"[green]✓ Loaded existing vector store with {count} documents[/green]")
+            console.print(
+                f"[green]✓ Loaded existing vector store with {count} documents[/green]"
+            )
         except Exception as exc:
             raise RuntimeError(
                 "Local ChromaDB collection was not found. "
@@ -240,7 +266,7 @@ class OllamaProvider(LLMProvider):
             ) from exc
 
     def search_knowledge_base(self, query: str) -> str:
-        order_id = self._extract_order_id(query)
+        order_id = extract_order_id(query)
 
         if order_id:
             exact_order_context = self._search_order_by_id(order_id)
@@ -263,6 +289,7 @@ class OllamaProvider(LLMProvider):
             return ""
 
         context_parts: list[str] = []
+
         for document, metadata, distance in zip(documents, metadatas, distances):
             source = metadata.get("source", "unknown") if metadata else "unknown"
             context_parts.append(
@@ -287,6 +314,7 @@ class OllamaProvider(LLMProvider):
             return ""
 
         context_parts: list[str] = []
+
         for document, metadata in zip(documents, metadatas):
             source = metadata.get("source", "unknown") if metadata else "unknown"
             chunk = metadata.get("chunk", "unknown") if metadata else "unknown"
@@ -301,17 +329,8 @@ class OllamaProvider(LLMProvider):
         messages: list[dict[str, str]],
         knowledge_context: str = "",
     ) -> tuple[str, list[dict[str, Any]]]:
-        """
-        Local Ollama flow.
-
-        Instead of relying on free-form JSON hidden inside a normal assistant answer,
-        this method first asks the model to choose one structured action.
-        Then Python executes tools deterministically.
-        """
-
         last_user_message = self._last_user_message(messages)
 
-        # If a tool result already exists, skip routing and produce final answer.
         if self._has_recent_tool_result(messages):
             return self._generate_final_answer(messages, knowledge_context), []
 
@@ -356,7 +375,7 @@ Allowed actions:
    Also use this for order-status questions when the user provides an order ID, because order records are retrieved from order.md through ChromaDB.
 
 2. create_support_ticket
-   Use this only when the user reports an issue that needs support action, such as damaged item, delayed order, missing item, refund issue, wrong item, or return problem.
+   Use this only when the user reports an issue that needs support action, such as damaged item, delayed package, missing item, refund issue, wrong item, or return problem.
    If the user provides an order ID, include it.
    If no order ID is provided, use ask_clarification.
 
@@ -368,6 +387,7 @@ Important:
 - "How long does shipping take?" is answer_directly.
 - "Can I return an item after delivery?" is answer_directly.
 - "Check order ORD-1001" is answer_directly using retrieved order.md context.
+- "Order ORD-1001" is answer_directly using retrieved order.md context.
 - "Where is my order?" is ask_clarification.
 - "I received a damaged item for order ORD-1001" is create_support_ticket.
 - Never use get_order_status. Order-status answers must come from the knowledge-base context.
@@ -451,7 +471,10 @@ Return JSON with this schema:
         text = response["message"]["content"].strip()
 
         if self._looks_like_tool_json(text):
-            return "I identified the required action, but could not produce a clean final response. Please try again."
+            return (
+                "I identified the required action, but could not produce a clean final "
+                "response. Please try again."
+            )
 
         return text
 
@@ -459,7 +482,7 @@ Return JSON with this schema:
         text = user_message.strip()
         lower = text.lower()
 
-        order_id = self._extract_order_id(text)
+        order_id = extract_order_id(text)
 
         policy_keywords = [
             "shipping",
@@ -476,13 +499,14 @@ Return JSON with this schema:
         issue_keywords = [
             "damaged",
             "broken",
-            "late",
-            "delayed",
             "missing",
             "wrong item",
             "refund issue",
             "not received",
             "lost",
+            "create ticket",
+            "raise ticket",
+            "support ticket",
         ]
 
         order_lookup_keywords = [
@@ -492,6 +516,7 @@ Return JSON with this schema:
             "track",
             "tracking",
             "my order",
+            "order",
         ]
 
         if any(keyword in lower for keyword in issue_keywords):
@@ -502,6 +527,7 @@ Return JSON with this schema:
                     issue_type=self._infer_issue_type(lower),
                     summary=text,
                 )
+
             return AgentAction(
                 action="ask_clarification",
                 answer="Please share your order ID so I can create a support ticket.",
@@ -513,7 +539,7 @@ Return JSON with this schema:
         if order_id and any(keyword in lower for keyword in order_lookup_keywords):
             return AgentAction(action="answer_directly", order_id=order_id)
 
-        if order_id and lower.startswith(("check", "track")):
+        if order_id:
             return AgentAction(action="answer_directly", order_id=order_id)
 
         if "order" in lower and not order_id:
@@ -528,20 +554,15 @@ Return JSON with this schema:
     def _infer_issue_type(lower_text: str) -> str:
         if "damaged" in lower_text or "broken" in lower_text:
             return "damaged_item"
-        if "late" in lower_text or "delayed" in lower_text or "not received" in lower_text:
-            return "delayed_order"
         if "missing" in lower_text:
             return "missing_item"
         if "refund" in lower_text:
             return "refund_issue"
         if "return" in lower_text:
             return "return_request"
+        if "not received" in lower_text or "lost" in lower_text:
+            return "missing_item"
         return "other"
-
-    @staticmethod
-    def _extract_order_id(text: str) -> str | None:
-        match = re.search(r"\bORD-\d{4,}\b", text, flags=re.IGNORECASE)
-        return match.group(0).upper() if match else None
 
     @staticmethod
     def _last_user_message(messages: list[dict[str, str]]) -> str:
@@ -612,6 +633,34 @@ class OrderSupportAgent:
 
     def ask(self, user_input: str) -> str:
         self.conversation_history.append({"role": "user", "content": user_input})
+
+        order_id = extract_order_id(user_input)
+
+        if (
+            isinstance(self.provider, OllamaProvider)
+            and order_id
+            and not is_support_ticket_request(user_input)
+        ):
+            knowledge_context = self.provider.search_knowledge_base(user_input)
+
+            if not knowledge_context or order_id not in knowledge_context.upper():
+                final_response = (
+                    f"I could not find order {order_id} in the knowledge base."
+                )
+                self.conversation_history.append(
+                    {"role": "assistant", "content": final_response}
+                )
+                return final_response
+
+            final_response = self.provider._generate_final_answer(
+                self.conversation_history,
+                knowledge_context=knowledge_context,
+            )
+
+            self.conversation_history.append(
+                {"role": "assistant", "content": final_response}
+            )
+            return final_response
 
         max_iterations = 5
 
