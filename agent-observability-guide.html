@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Observability for AI Agents — A Field Guide</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --bg:#0B0E14;
+  --bg-panel:#12161F;
+  --bg-panel-alt:#161B26;
+  --ink:#E7EAF0;
+  --ink-dim:#99A2B8;
+  --ink-faint:#5C6478;
+  --line:#232A3A;
+  --teal:#4FD6C4;
+  --teal-dim:rgba(79,214,196,0.14);
+  --amber:#F2B84B;
+  --amber-dim:rgba(242,184,75,0.14);
+  --violet:#9C8CF2;
+  --violet-dim:rgba(156,140,242,0.14);
+  --rose:#F2708A;
+  --rose-dim:rgba(242,112,138,0.14);
+  --slate-dim:rgba(153,162,184,0.14);
+  --code-bg:#0F1319;
+  --serif:'Source Serif 4', Georgia, serif;
+  --sans:'Space Grotesk', sans-serif;
+  --mono:'JetBrains Mono', monospace;
+}
+
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--serif);
+  font-size:18px;
+  line-height:1.7;
+  margin:0;
+  -webkit-font-smoothing:antialiased;
+}
+.page{max-width:980px;margin:0 auto;padding:0 28px 100px;}
+
+/* ---------- Hero ---------- */
+.hero{padding:88px 0 40px;border-bottom:1px solid var(--line);}
+.eyebrow{
+  font-family:var(--mono);
+  font-size:12px;
+  letter-spacing:0.14em;
+  text-transform:uppercase;
+  color:var(--teal);
+  margin:0 0 18px;
+}
+.hero h1{
+  font-family:var(--sans);
+  font-weight:700;
+  font-size:52px;
+  line-height:1.08;
+  margin:0 0 20px;
+  letter-spacing:-0.01em;
+}
+.hero h1 em{font-style:normal;color:var(--teal);}
+.hero p.lede{
+  font-size:20px;
+  color:var(--ink-dim);
+  max-width:640px;
+  margin:0 0 32px;
+}
+.ticks{display:flex;gap:3px;margin-bottom:8px;}
+.ticks span{width:3px;height:18px;background:var(--line);border-radius:2px;}
+.ticks span:nth-child(3n){background:var(--teal);height:26px;}
+.ticks span:nth-child(5n){background:var(--amber);height:22px;}
+.ticks span:nth-child(7n){background:var(--violet);height:14px;}
+
+/* ---------- How to read this ---------- */
+.howto{
+  background:var(--bg-panel);
+  border:1px solid var(--line);
+  border-left:3px solid var(--teal);
+  border-radius:8px;
+  padding:22px 26px;
+  margin:36px 0 0;
+  font-size:15.5px;
+  color:var(--ink-dim);
+}
+.howto strong{color:var(--ink);}
+
+/* ---------- TOC ---------- */
+.toc{display:flex;flex-wrap:wrap;gap:10px;padding:32px 0 8px;}
+.toc a{
+  font-family:var(--mono);
+  font-size:12.5px;
+  color:var(--ink-dim);
+  text-decoration:none;
+  border:1px solid var(--line);
+  border-radius:100px;
+  padding:7px 14px;
+  transition:border-color .15s, color .15s;
+}
+.toc a:hover{border-color:var(--teal);color:var(--teal);}
+
+/* ---------- Parts ---------- */
+.part{padding:80px 0;border-bottom:1px solid var(--line);}
+.part:last-of-type{border-bottom:none;}
+.part-tag{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  font-family:var(--mono);
+  font-size:12.5px;
+  letter-spacing:0.08em;
+  color:var(--ink-faint);
+  margin-bottom:18px;
+}
+.part-tag .num{color:var(--teal);font-weight:600;}
+.part h2{
+  font-family:var(--sans);
+  font-weight:700;
+  font-size:32px;
+  line-height:1.2;
+  margin:0 0 8px;
+  letter-spacing:-0.01em;
+}
+.part .dates{
+  font-family:var(--mono);
+  font-size:13px;
+  color:var(--ink-faint);
+  margin:0 0 28px;
+}
+.part h3{
+  font-family:var(--sans);
+  font-weight:600;
+  font-size:20px;
+  color:var(--ink);
+  margin:40px 0 14px;
+}
+.part p{max-width:700px;margin:0 0 18px;color:var(--ink);}
+.part p.dim{color:var(--ink-dim);}
+.part ul, .part ol{max-width:700px;padding-left:22px;margin:0 0 20px;}
+.part li{margin-bottom:10px;}
+
+/* ---------- figures ---------- */
+figure{margin:44px 0;}
+figure svg{width:100%;height:auto;display:block;}
+figcaption{
+  font-family:var(--mono);
+  font-size:12.5px;
+  color:var(--ink-faint);
+  text-align:center;
+  margin-top:14px;
+}
+
+/* ---------- callouts ---------- */
+.callout{
+  background:var(--bg-panel);
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:20px 24px;
+  margin:24px 0;
+  max-width:700px;
+}
+.callout.teal{border-left:3px solid var(--teal);}
+.callout.amber{border-left:3px solid var(--amber);}
+.callout.violet{border-left:3px solid var(--violet);}
+.callout.rose{border-left:3px solid var(--rose);}
+.callout .label{
+  font-family:var(--mono);
+  font-size:11.5px;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  color:var(--ink-faint);
+  margin-bottom:8px;
+  display:block;
+}
+.callout p{margin:0;font-size:16px;color:var(--ink-dim);}
+
+/* ---------- code blocks ---------- */
+pre{
+  background:var(--code-bg);
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:18px 20px;
+  overflow-x:auto;
+  font-family:var(--mono);
+  font-size:13.5px;
+  color:var(--ink-dim);
+  max-width:700px;
+  line-height:1.6;
+}
+code{font-family:var(--mono);color:var(--teal);font-size:0.92em;}
+
+/* ---------- tables ---------- */
+.table-wrap{overflow-x:auto;margin:28px 0;}
+table{
+  border-collapse:collapse;
+  width:100%;
+  min-width:760px;
+  font-size:14.5px;
+}
+th{
+  font-family:var(--sans);
+  font-weight:600;
+  text-align:left;
+  background:var(--bg-panel);
+  color:var(--ink);
+  padding:12px 16px;
+  border-bottom:2px solid var(--line);
+  white-space:nowrap;
+}
+td{
+  padding:12px 16px;
+  border-bottom:1px solid var(--line);
+  color:var(--ink-dim);
+  vertical-align:top;
+}
+tr:hover td{background:var(--bg-panel);}
+td.tool{color:var(--ink);font-family:var(--sans);font-weight:600;white-space:nowrap;}
+
+/* ---------- steps ---------- */
+.steps{list-style:none;padding:0;margin:24px 0;max-width:720px;}
+.steps li{
+  display:flex;
+  gap:18px;
+  padding:16px 0;
+  border-top:1px solid var(--line);
+}
+.steps li:first-child{border-top:none;}
+.steps .n{
+  font-family:var(--mono);
+  font-size:13px;
+  color:var(--teal);
+  min-width:26px;
+  padding-top:2px;
+}
+.steps .t{color:var(--ink-dim);}
+.steps .t strong{color:var(--ink);font-family:var(--sans);}
+
+/* ---------- glossary ---------- */
+.glossary dt{
+  font-family:var(--mono);
+  font-weight:600;
+  color:var(--teal);
+  margin-top:16px;
+  font-size:15px;
+}
+.glossary dd{margin:4px 0 0;color:var(--ink-dim);max-width:640px;}
+
+/* ---------- footer ---------- */
+footer{padding:50px 0 20px;color:var(--ink-faint);font-size:13px;font-family:var(--mono);}
+a.src{color:var(--ink-dim);}
+a.src:hover{color:var(--teal);}
+
+@media (max-width:640px){
+  .hero h1{font-size:36px;}
+  body{font-size:16.5px;}
+  .part h2{font-size:26px;}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ============ HERO ============ -->
+  <div class="hero">
+    <div class="ticks">
+      <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <div class="eyebrow">A field guide · updated for mid-2026</div>
+    <h1>Observability<br>for <em>AI Agents</em></h1>
+    <p class="lede">Where the idea came from, how it actually works under the hood, what the field agrees is best practice today, and how to build it — in open-source tools, grounded in what's really shipped rather than what's marketed.</p>
+
+    <div class="howto">
+      <strong>How to read this.</strong> It's built as one continuous story, in order: Part 1 is history (skip it if you only want the how-to), Part 2 is vocabulary, Part 3 is the current tool landscape, Part 4–5 are best practice and a build sequence, Part 6 looks at what's still unsettled, Part 7 is references. Each part stands alone if you only need one piece — but read start to finish once and the whole shape of the field should make sense.
+    </div>
+
+    <div class="toc">
+      <a href="#p1">01 · Where it started</a>
+      <a href="#p2">02 · Core concepts</a>
+      <a href="#p3">03 · The landscape today</a>
+      <a href="#p4">04 · Best practices</a>
+      <a href="#p5">05 · How to build it</a>
+      <a href="#p6">06 · What's still unsettled</a>
+      <a href="#p7">07 · Resources &amp; glossary</a>
+    </div>
+  </div>
+
+  <!-- ============ PART 01 — HISTORY ============ -->
+  <section class="part" id="p1">
+    <div class="part-tag"><span class="num">Part 01</span> · Origins</div>
+    <h2>Where this started</h2>
+    <p class="dates">2010 — 2026</p>
+
+    <p>Before there were agents, before there were LLMs in production at all, there was a much older and more boring-sounding problem: understanding what a distributed system is doing right now, from the outside, without stopping it to look. That problem — and the tooling built to solve it — is the direct ancestor of almost everything used to watch an AI agent today. Knowing that lineage explains both the vocabulary everyone still uses (<em style="color:var(--ink)">trace</em>, <em style="color:var(--ink)">span</em>) and the current mess of competing tools — this field hasn't converged once yet, it's converged twice, and it's arguably in the middle of a third convergence right now.</p>
+
+    <h3>1.1 — Distributed tracing becomes the industry standard (2010–2021)</h3>
+    <p>In 2010, Google published the <em style="color:var(--ink)">Dapper</em> paper, describing a large-scale tracing system it had already been running internally for two years. Dapper itself was never released — but the paper fixed the vocabulary the entire field still uses: a <strong style="color:var(--ink)">trace</strong> is the end-to-end path of one request through a system, and a <strong style="color:var(--ink)">span</strong> is one timed, named unit of work inside it.</p>
+    <p>Two years later, Twitter open-sourced <strong style="color:var(--ink)">Zipkin</strong>, directly inspired by Dapper — the first tracing tool anyone outside Google could actually install and run. Uber followed with an internal project inspired by both Dapper and Zipkin, which it open-sourced as <strong style="color:var(--ink)">Jaeger</strong>. By late 2016, the Cloud Native Computing Foundation had accepted <strong style="color:var(--ink)">OpenTracing</strong> — a vendor-neutral API specification for tracing — as its third hosted project. OpenTracing deliberately shipped as an API only, with no implementation, so any vendor could plug in underneath it.</p>
+    <p>Google answered with a competing effort, <strong style="color:var(--ink)">OpenCensus</strong>, which took the opposite approach: a full implementation covering both traces <em>and</em> metrics, rather than just an API. Having two credible, incompatible standards recreated the exact problem standards exist to prevent — library authors had to pick one or maintain both, and switching observability vendors meant re-instrumenting the whole codebase.</p>
+    <p>In May 2019, the two projects did the sensible thing and merged into a single effort: <strong style="color:var(--ink)">OpenTelemetry</strong>. Its tracing specification reached version 1.0 stability in 2021. By this point the industry had settled on its "three pillars" — logs, metrics, and traces — later nicknamed <strong style="color:var(--ink)">Observability 1.0</strong>. This was a world built for watching microservices, not language models: every request has a status code, a duration, and (mostly) a deterministic path.</p>
+
+    <h3>1.2 — The gap: agents break the old assumptions (2023)</h3>
+    <p>The three pillars assume a request either succeeds or fails in a way a status code can capture. An LLM call breaks that assumption in the way that matters most: the same input can produce a different output every time, the "failure" is very often a confident 200-response with a wrong answer inside it, and the thing you actually need to debug — the exact prompt, the exact completion, the token cost — isn't a metric or a log line, it's a large, unstructured, expensive-to-store blob. Traditional APM could tell you latency and error rate. It had nothing to say about whether the model hallucinated.</p>
+    <p>2023 is the year the field answers this, four different ways at once, none of them standardized yet:</p>
+    <ul>
+      <li><strong style="color:var(--ink)">Langfuse</strong> and <strong style="color:var(--ink)">LangSmith</strong> both launch the same year — full platforms that treat the prompt/response/token/cost record as a first-class object, not something squeezed into a generic log line.</li>
+      <li><strong style="color:var(--ink)">OpenInference</strong>, started by Arize, defines its own LLM-span attribute namespace — because OpenTelemetry doesn't have one yet, and someone has to.</li>
+      <li><strong style="color:var(--ink)">Helicone</strong> takes a proxy-based bet instead: sit in front of the model API and log the wire traffic, no SDK instrumentation required.</li>
+      <li><strong style="color:var(--ink)">OpenLLMetry</strong> (by Traceloop) takes a fourth bet: a vendor-neutral, OTel-based instrumentation SDK you can point at whichever backend you choose later.</li>
+    </ul>
+    <p class="dim">Four different architectural answers to the same new problem, arriving in the same twelve months, all incompatible with each other.</p>
+
+    <h3>1.3 — Standardization begins (April 2024 – January 2025)</h3>
+    <p>In April 2024, OpenTelemetry formed a dedicated <strong style="color:var(--ink)">GenAI Special Interest Group</strong> under its Semantic Conventions SIG. The mandate: agree on one shared vocabulary — attribute names for the model used, token counts, latency — so that instrumentation written by different vendors produces telemetry that means the same thing everywhere, instead of five slightly different dialects of the same idea.</p>
+    <p>In January 2025, Traceloop folded OpenLLMetry's semantic conventions directly into OpenTelemetry itself — turning a vendor-specific effort into part of the open standard rather than a competitor to it. In between those two dates, in November 2024, Anthropic released the <strong style="color:var(--ink)">Model Context Protocol</strong>, standardizing how agents call tools — which quietly created a whole new common span type (the tool call) that observability now has to describe just as carefully as the LLM call itself.</p>
+
+    <h3>1.4 — Where it's landed: convergence and agent-specific extension (2025–2026)</h3>
+    <p>Late in 2024, Charity Majors gave the shift a name — <strong style="color:var(--ink)">Observability 2.0</strong>: a move away from pre-aggregated dashboards you had to guess the shape of in advance, toward being able to ask any question of raw, structured event data after the fact. For agents this isn't just philosophy — you genuinely don't know in advance which failure mode you'll need to dig into.</p>
+    <p>Through 2025, Datadog launched AI Agent Monitoring at its DASH conference, adopting the OTel GenAI attributes natively, while Langfuse and LangSmith kept growing along different bets — Langfuse doubling down on OTel-native, self-hostable infrastructure, LangSmith doubling down on deep LangGraph integration. Through 2025 and into 2026, the GenAI SIG has pushed past single LLM calls into two new, still-experimental efforts: <strong style="color:var(--ink)">AI Agent Application Conventions</strong> (tasks, actions, state transitions, memory for multi-agent systems) and <strong style="color:var(--ink)">AI Agent Framework Conventions</strong> (adapters for CrewAI, AutoGen, LangGraph, Semantic Kernel, and others).</p>
+    <p>By 2026, OpenInference and OpenTelemetry's own <code>gen_ai.*</code> namespace are actively converging — most instrumentation now emits both attribute sets for compatibility during the transition. And the market is consolidating even as it keeps forking: Langfuse joined ClickHouse (the database that already powered its backend) in January 2026, while newer, agent-native entrants like Laminar argue the first generation of tools got the data model wrong for agent-shaped traffic in the first place — a single agent run can be 40 to 75 spans of nested tool calls, not the one prompt/response pair the 2023-era tools were designed around.</p>
+
+    <figure>
+      <svg viewBox="0 0 1200 550" xmlns="http://www.w3.org/2000/svg">
+        <rect x="0" y="0" width="1200" height="550" rx="14" fill="var(--bg-panel)"/>
+        <text x="30" y="30" font-family="Space Grotesk" font-weight="700" font-size="15" fill="#E7EAF0">The lineage, in one line: 2010 → 2026</text>
+
+        <!-- axis -->
+        <line x1="170" y1="40" x2="1150" y2="40" stroke="#232A3A" stroke-width="1.5"/>
+        <g font-family="JetBrains Mono" font-size="10" fill="#5C6478" text-anchor="middle">
+          <line x1="170" y1="36" x2="170" y2="44" stroke="#5C6478"/><text x="170" y="56">2010</text>
+          <line x1="285" y1="36" x2="285" y2="44" stroke="#5C6478"/><text x="285" y="56">2012</text>
+          <line x1="516" y1="36" x2="516" y2="44" stroke="#5C6478"/><text x="516" y="56">2016</text>
+          <line x1="690" y1="36" x2="690" y2="44" stroke="#5C6478"/><text x="690" y="56">2019</text>
+          <line x1="805" y1="36" x2="805" y2="44" stroke="#5C6478"/><text x="805" y="56">2021</text>
+          <line x1="920" y1="36" x2="920" y2="44" stroke="#5C6478"/><text x="920" y="56">2023</text>
+          <line x1="978" y1="36" x2="978" y2="44" stroke="#5C6478"/><text x="978" y="56">2024</text>
+          <line x1="1036" y1="36" x2="1036" y2="44" stroke="#5C6478"/><text x="1036" y="56">2025</text>
+          <line x1="1093" y1="36" x2="1093" y2="44" stroke="#5C6478"/><text x="1093" y="56">2026</text>
+        </g>
+
+        <!-- divider lines -->
+        <line x1="170" y1="170" x2="1150" y2="170" stroke="#232A3A" stroke-width="1"/>
+        <line x1="170" y1="298" x2="1150" y2="298" stroke="#232A3A" stroke-width="1"/>
+        <line x1="170" y1="410" x2="1150" y2="410" stroke="#232A3A" stroke-width="1"/>
+
+        <!-- ROW 1 : distributed tracing -->
+        <text x="170" y="90" font-family="Space Grotesk" font-weight="600" font-size="13" fill="#4FD6C4">2010–2023 · Distributed tracing matures into the industry standard</text>
+        <rect x="170" y="100" width="635" height="32" rx="8" fill="#4FD6C4" fill-opacity="0.14" stroke="#4FD6C4" stroke-width="1.5"/>
+        <rect x="805" y="100" width="115" height="32" rx="8" fill="none" stroke="#4FD6C4" stroke-width="1.5" stroke-dasharray="4 4"/>
+        <g fill="#4FD6C4">
+          <circle cx="170" cy="116" r="4"/><circle cx="285" cy="116" r="4"/><circle cx="516" cy="116" r="4"/><circle cx="690" cy="116" r="4"/><circle cx="805" cy="116" r="4"/>
+        </g>
+        <g font-family="JetBrains Mono" font-size="10.5" fill="#99A2B8" text-anchor="middle">
+          <text x="170" y="148">2010 Dapper</text>
+          <text x="285" y="148">2012 Zipkin</text>
+          <text x="516" y="148">2016 OpenTracing</text>
+          <text x="690" y="148">2019 → OTel</text>
+          <text x="805" y="148">2021 v1.0</text>
+        </g>
+
+        <!-- ROW 2 : the gap -->
+        <text x="170" y="200" font-family="Space Grotesk" font-weight="600" font-size="13" fill="#F2B84B">2023 · Agents outgrow the three pillars</text>
+        <rect x="902" y="210" width="76" height="28" rx="6" fill="#F2B84B" fill-opacity="0.14" stroke="#F2B84B" stroke-width="1.5"/>
+        <circle cx="940" cy="224" r="4" fill="#F2B84B"/>
+        <g font-family="JetBrains Mono" font-size="10" fill="#99A2B8">
+          <text x="600" y="256">Langfuse &amp; LangSmith both launch — LLM-native tracing arrives</text>
+          <text x="600" y="270">OpenInference (Arize) fills the gap before OTel has one</text>
+          <text x="600" y="284">Helicone (proxy) and OpenLLMetry (OTel SDK) join the same year</text>
+        </g>
+
+        <!-- ROW 3 : standardization -->
+        <text x="170" y="312" font-family="Space Grotesk" font-weight="600" font-size="13" fill="#9C8CF2">Apr 2024 – Jan 2025 · Standardization begins</text>
+        <rect x="992" y="322" width="50" height="28" rx="6" fill="#9C8CF2" fill-opacity="0.14" stroke="#9C8CF2" stroke-width="1.5"/>
+        <circle cx="1017" cy="336" r="4" fill="#9C8CF2"/>
+        <g font-family="JetBrains Mono" font-size="10" fill="#99A2B8">
+          <text x="600" y="368">OTel forms the GenAI Semantic Conventions SIG — Apr 2024</text>
+          <text x="600" y="382">Anthropic ships MCP, standardizing tool-call spans — Nov 2024</text>
+          <text x="600" y="396">OpenLLMetry's conventions merge into OpenTelemetry — Jan 2025</text>
+        </g>
+
+        <!-- ROW 4 : agent-native extension -->
+        <text x="170" y="424" font-family="Space Grotesk" font-weight="600" font-size="13" fill="#4FD6C4">2025–2026 · Agent-native extension &amp; consolidation</text>
+        <rect x="1036" y="434" width="102" height="28" rx="6" fill="#4FD6C4" fill-opacity="0.14" stroke="#4FD6C4" stroke-width="1.5"/>
+        <path d="M 1138 440 L 1150 448 L 1138 456 Z" fill="#4FD6C4"/>
+        <circle cx="1050" cy="448" r="4" fill="#4FD6C4"/>
+        <g font-family="JetBrains Mono" font-size="10" fill="#99A2B8">
+          <text x="600" y="480">Datadog ships AI Agent Monitoring; "Observability 2.0" named — 2025</text>
+          <text x="600" y="494">Agent-specific OTel conventions (multi-agent, memory) — experimental</text>
+          <text x="600" y="508">Langfuse joins ClickHouse (Jan 2026); new entrants contest per-span pricing</text>
+        </g>
+      </svg>
+      <figcaption>Figure 1.1 — The direct line from Dapper (2010) to agent-native observability (2026). Two mergers, one still in progress.</figcaption>
+    </figure>
+
+    <p>That's the whole arc: a 2010-era answer to "what is my microservice doing" became, through a fairly traceable chain of forks, mergers, and one deliberate standards effort, a 2026-era answer to "what is my agent doing" — using the same core vocabulary (trace, span), stretched to cover a problem it wasn't built for, plus one genuinely new layer bolted on top, because agents fail in ways a status code was never going to catch.</p>
+  </section>
+
+  <!-- ============ PART 02 — CORE CONCEPTS ============ -->
+  <section class="part" id="p2">
+    <div class="part-tag"><span class="num">Part 02</span> · Foundations</div>
+    <h2>Core concepts</h2>
+    <p class="dates">What you're actually building, precisely defined</p>
+
+    <h3>2.1 — The vocabulary</h3>
+    <ul>
+      <li><strong style="color:var(--ink)">Trace</strong> — everything that happened during one agent run, start to finish. The top-level container.</li>
+      <li><strong style="color:var(--ink)">Span</strong> — one timed unit of work inside a trace: one LLM call, one tool call, one retrieval step. Spans nest — a span can have child spans.</li>
+      <li><strong style="color:var(--ink)">Generation</strong> — a specialized span for an LLM call specifically, carrying the exact prompt, the exact completion, model parameters, token counts, and cost — not just a start and end time.</li>
+      <li><strong style="color:var(--ink)">Session</strong> — a group of traces belonging to the same conversation or user, useful once an agent has multi-turn memory rather than single isolated runs.</li>
+      <li><strong style="color:var(--ink)">Observation</strong> — the generic term some platforms use for "anything inside a trace": a span, a generation, or a point-in-time event, treated as one interchangeable unit.</li>
+    </ul>
+
+    <figure>
+      <svg viewBox="0 0 1000 440" xmlns="http://www.w3.org/2000/svg">
+        <rect x="10" y="10" width="980" height="300" rx="14" fill="#161B26" stroke="#232A3A"/>
+        <text x="26" y="34" font-family="Space Grotesk" font-weight="700" font-size="13" fill="#4FD6C4">TRACE · user_query_42</text>
+        <text x="26" y="50" font-family="JetBrains Mono" font-size="10" fill="#99A2B8">root: agent_run · total duration ≈ 4.2s</text>
+
+        <!-- tree line depth0->depth1 -->
+        <line x1="45" y1="98" x2="45" y2="250" stroke="#5C6478" stroke-width="1"/>
+        <line x1="45" y1="118" x2="55" y2="118" stroke="#5C6478" stroke-width="1"/>
+        <line x1="45" y1="150" x2="55" y2="150" stroke="#5C6478" stroke-width="1"/>
+        <line x1="45" y1="218" x2="55" y2="218" stroke="#5C6478" stroke-width="1"/>
+        <line x1="45" y1="250" x2="55" y2="250" stroke="#5C6478" stroke-width="1"/>
+        <!-- nested tree line for http_request -->
+        <line x1="75" y1="160" x2="75" y2="184" stroke="#5C6478" stroke-width="1"/>
+        <line x1="75" y1="184" x2="85" y2="184" stroke="#5C6478" stroke-width="1"/>
+
+        <!-- depth0 root -->
+        <text x="30" y="92" font-family="JetBrains Mono" font-size="12" fill="#E7EAF0">agent_run <tspan fill="#5C6478">[root span]</tspan></text>
+        <rect x="290" y="76" width="650" height="22" rx="5" fill="#99A2B8" fill-opacity="0.15" stroke="#99A2B8" stroke-width="1.3"/>
+
+        <!-- depth1: plan -->
+        <text x="58" y="122" font-family="JetBrains Mono" font-size="11.5" fill="#E7EAF0">plan <tspan fill="#5C6478">(LLM)</tspan></text>
+        <rect x="300" y="108" width="90" height="20" rx="5" fill="#9C8CF2" fill-opacity="0.16" stroke="#9C8CF2" stroke-width="1.3"/>
+
+        <!-- depth1: tool_call search_flights -->
+        <text x="58" y="154" font-family="JetBrains Mono" font-size="11.5" fill="#E7EAF0">tool_call: search_flights</text>
+        <rect x="400" y="140" width="140" height="20" rx="5" fill="#F2B84B" fill-opacity="0.16" stroke="#F2B84B" stroke-width="1.3"/>
+
+        <!-- depth2: http_request nested -->
+        <text x="88" y="190" font-family="JetBrains Mono" font-size="10.5" fill="#99A2B8">http_request</text>
+        <rect x="410" y="176" width="90" height="16" rx="4" fill="none" stroke="#F2B84B" stroke-width="1" stroke-dasharray="3 3"/>
+
+        <!-- depth1: tool_call get_price -->
+        <text x="58" y="222" font-family="JetBrains Mono" font-size="11.5" fill="#E7EAF0">tool_call: get_price</text>
+        <rect x="550" y="208" width="110" height="20" rx="5" fill="#F2B84B" fill-opacity="0.16" stroke="#F2B84B" stroke-width="1.3"/>
+
+        <!-- depth1: generate_answer -->
+        <text x="58" y="254" font-family="JetBrains Mono" font-size="11.5" fill="#E7EAF0">generate_answer <tspan fill="#5C6478">(LLM)</tspan></text>
+        <rect x="670" y="240" width="280" height="20" rx="5" fill="#9C8CF2" fill-opacity="0.16" stroke="#9C8CF2" stroke-width="1.3"/>
+
+        <!-- attributes callout -->
+        <rect x="10" y="320" width="980" height="88" rx="10" fill="#0F1319" stroke="#232A3A"/>
+        <text x="26" y="340" font-family="JetBrains Mono" font-weight="600" font-size="11" fill="#F2B84B">span attributes — tool_call: search_flights</text>
+        <g font-family="JetBrains Mono" font-size="10.5" fill="#99A2B8">
+          <text x="26" y="358">gen_ai.tool.name = "search_flights"</text>
+          <text x="26" y="374">gen_ai.tool.call.id = "call_8f21"        duration_ms = 842        status = "ok"</text>
+          <text x="26" y="390">input = {origin: "BLR", dest: "SFO", date: "2026-08-14"}</text>
+        </g>
+        <text x="500" y="430" font-family="JetBrains Mono" font-size="12" fill="#5C6478" text-anchor="middle">Figure 2.1 — One trace, five spans: how a single agent run decomposes.</text>
+      </svg>
+    </figure>
+
+    <h3>2.2 — The four layers (traces are the foundation, not the whole story)</h3>
+    <p>Classic observability's three pillars still apply, but agents need a fourth layer stacked on top — this is the single biggest structural difference from traditional software observability.</p>
+
+    <figure>
+      <svg viewBox="0 0 900 400" xmlns="http://www.w3.org/2000/svg">
+        <!-- direction arrow -->
+        <line x1="24" y1="360" x2="24" y2="70" stroke="#5C6478" stroke-width="1.3"/>
+        <path d="M 18 76 L 24 62 L 30 76 Z" fill="#5C6478"/>
+        <text x="24" y="386" font-family="JetBrains Mono" font-size="9.5" fill="#5C6478" text-anchor="middle">builds on ↑</text>
+
+        <!-- Traces (foundation) -->
+        <rect x="50" y="300" width="380" height="62" rx="8" fill="#4FD6C4" fill-opacity="0.14" stroke="#4FD6C4" stroke-width="1.5"/>
+        <text x="70" y="326" font-family="Space Grotesk" font-weight="700" font-size="14" fill="#4FD6C4">TRACES</text>
+        <text x="70" y="346" font-family="JetBrains Mono" font-size="10.5" fill="#99A2B8">what happened, in order</text>
+        <line x1="430" y1="331" x2="480" y2="331" stroke="#5C6478" stroke-width="1"/>
+        <text x="490" y="320" font-family="JetBrains Mono" font-size="11" fill="#99A2B8">The foundation. Every LLM call and tool call</text>
+        <text x="490" y="336" font-family="JetBrains Mono" font-size="11" fill="#99A2B8">as a timed, nested span.</text>
+
+        <!-- Logs -->
+        <rect x="50" y="222" width="380" height="62" rx="8" fill="#99A2B8" fill-opacity="0.14" stroke="#99A2B8" stroke-width="1.5"/>
+        <text x="70" y="248" font-family="Space Grotesk" font-weight="700" font-size="14" fill="#E7EAF0">STRUCTURED LOGS</text>
+        <text x="70" y="268" font-family="JetBrains Mono" font-size="10.5" fill="#99A2B8">the decision points</text>
+        <line x1="430" y1="253" x2="480" y2="253" stroke="#5C6478" stroke-width="1"/>
+        <text x="490" y="242" font-family="JetBrains Mono" font-size="11" fill="#99A2B8">Which tool was chosen and why, what parameters,</text>
+        <text x="490" y="258" font-family="JetBrains Mono" font-size="11" fill="#99A2B8">what came back — inside each step.</text>
+
+        <!-- Metrics -->
+        <rect x="50" y="144" width="380" height="62" rx="8" fill="#F2B84B" fill-opacity="0.14" stroke="#F2B84B" stroke-width="1.5"/>
+        <text x="70" y="170" font-family="Space Grotesk" font-weight="700" font-size="14" fill="#F2B84B">METRICS</text>
+        <text x="70" y="190" font-family="JetBrains Mono" font-size="10.5" fill="#99A2B8">the aggregate view</text>
+        <line x1="430" y1="175" x2="480" y2="175" stroke="#5C6478" stroke-width="1"/>
+        <text x="490" y="164" font-family="JetBrains Mono" font-size="11" fill="#99A2B8">Latency percentiles, cost per run, tool success</text>
+        <text x="490" y="180" font-family="JetBrains Mono" font-size="11" fill="#99A2B8">rate — computed across many traces.</text>
+
+        <!-- Evals -->
+        <rect x="50" y="66" width="380" height="62" rx="8" fill="#F2708A" fill-opacity="0.14" stroke="#F2708A" stroke-width="1.5"/>
+        <text x="70" y="92" font-family="Space Grotesk" font-weight="700" font-size="14" fill="#F2708A">EVALUATION SIGNAL</text>
+        <text x="70" y="112" font-family="JetBrains Mono" font-size="10.5" fill="#99A2B8">was it actually good?</text>
+        <line x1="430" y1="97" x2="480" y2="97" stroke="#5C6478" stroke-width="1"/>
+        <text x="490" y="86" font-family="JetBrains Mono" font-size="11" fill="#99A2B8">LLM-as-judge, rule-based, or human score attached</text>
+        <text x="490" y="102" font-family="JetBrains Mono" font-size="11" fill="#99A2B8">to each trace. Classic observability has no equivalent.</text>
+      </svg>
+      <figcaption>Figure 2.2 — The four layers of agent observability. A trace tells you what happened; only the top layer tells you whether it was right.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ PART 03 — LANDSCAPE ============ -->
+  <section class="part" id="p3">
+    <div class="part-tag"><span class="num">Part 03</span> · Current state</div>
+    <h2>The tooling landscape, mid-2026</h2>
+    <p class="dates">Two separate decisions, not one</p>
+
+    <p>"Which observability tool" is actually two separate decisions bundled together: how do you <em style="color:var(--ink)">emit</em> the telemetry (the instrumentation layer), and where does it <em style="color:var(--ink)">live and get queried</em> (the backend/platform layer)? Keeping these separate is what protects you from re-instrumenting an entire codebase if you switch platforms later.</p>
+
+    <h3>3.1 — Instrumentation layer</h3>
+    <ul>
+      <li><strong style="color:var(--ink)">OpenTelemetry GenAI semantic conventions</strong> — the shared vocabulary itself (<code>gen_ai.*</code> attributes). Not a tool — a spec.</li>
+      <li><strong style="color:var(--ink)">OpenLLMetry</strong> (Traceloop) — an OTel-native SDK implementing that vocabulary, vendor-neutral, ships to whichever backend you pick.</li>
+      <li><strong style="color:var(--ink)">OpenInference</strong> (Arize) — the earlier, parallel namespace, now converging with OTel's own.</li>
+    </ul>
+
+    <h3>3.2 — Backend / platform layer</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Tool</th><th>Architecture</th><th>License / hosting</th><th>Best fit</th><th>Main trade-off</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="tool">Langfuse</td>
+            <td>OTel-native span tracing + evals + prompt mgmt, ClickHouse-backed</td>
+            <td>MIT · self-host (Docker/Helm) or managed cloud</td>
+            <td>Framework-agnostic teams wanting tracing + evals + prompts in one place</td>
+            <td>Self-hosting at scale needs real ClickHouse operational muscle</td>
+          </tr>
+          <tr>
+            <td class="tool">MLflow Tracing</td>
+            <td>Auto-instruments 60+ frameworks via OTel</td>
+            <td>Apache 2.0 · Linux Foundation, no paywalled features</td>
+            <td>Teams wanting observability + eval + governance under one fully open license, especially if ML/Databricks-adjacent</td>
+            <td>Newer to agent-specific tracing than Langfuse/LangSmith</td>
+          </tr>
+          <tr>
+            <td class="tool">Arize Phoenix</td>
+            <td>OTel-compatible tracing, strongest RAG-specific eval methodology</td>
+            <td>Open source · notebook-friendly</td>
+            <td>Teams whose top question is "is this grounded / hallucinating," not just "what happened"</td>
+            <td>Less agent-native trace UX than newer entrants</td>
+          </tr>
+          <tr>
+            <td class="tool">OpenObserve</td>
+            <td>Unified store for logs + metrics + traces + LLM telemetry</td>
+            <td>Open source</td>
+            <td>Teams wanting one platform instead of Prometheus + Loki + Tempo + a separate LLM tool</td>
+            <td>LLM-specific eval features come from pairing with Langfuse/Opik, not built-in</td>
+          </tr>
+          <tr>
+            <td class="tool">LangSmith</td>
+            <td>Framework-native, deepest LangGraph/LangChain integration, run-tree view</td>
+            <td>Commercial (managed / hybrid / self-host enterprise), free tier</td>
+            <td>Teams fully committed to LangGraph/LangChain as the orchestration layer</td>
+            <td>Weakest story for stack-agnostic teams</td>
+          </tr>
+          <tr>
+            <td class="tool">Helicone</td>
+            <td>Proxy — point your API base URL at it, no SDK required</td>
+            <td>Open source + managed</td>
+            <td>Fastest possible setup, simple request/response logging and cost tracking</td>
+            <td>Weakest visibility into multi-step agent structure</td>
+          </tr>
+          <tr>
+            <td class="tool">Laminar</td>
+            <td>Purpose-built for agent traces, OTel-native, volume-based pricing</td>
+            <td>Open source</td>
+            <td>Teams specifically unhappy with per-span pricing on high-span-count agent runs</td>
+            <td>Newer, smaller ecosystem than Langfuse</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>3.3 — A narrowing heuristic (not a recommendation)</h3>
+    <ul>
+      <li>Deep in LangGraph already, comfortable with a commercial tool → <strong style="color:var(--ink)">LangSmith</strong>.</li>
+      <li>Self-hosting or data residency is a hard requirement → <strong style="color:var(--ink)">Langfuse</strong> or <strong style="color:var(--ink)">MLflow</strong>, self-hosted.</li>
+      <li>The open question is retrieval quality / hallucination, not agent structure → <strong style="color:var(--ink)">Phoenix</strong>.</li>
+      <li>You want the fastest possible integration and don't need deep agent visibility yet → <strong style="color:var(--ink)">Helicone</strong>.</li>
+      <li>Already running Prometheus/Loki/Tempo and don't want a second platform → <strong style="color:var(--ink)">OpenObserve</strong>.</li>
+      <li>None of the above — you just want the safest, most-adopted neutral default → <strong style="color:var(--ink)">Langfuse</strong> is the closest thing to one in 2026.</li>
+    </ul>
+  </section>
+
+  <!-- ============ PART 04 — BEST PRACTICES ============ -->
+  <section class="part" id="p4">
+    <div class="part-tag"><span class="num">Part 04</span> · Practice</div>
+    <h2>Best practices</h2>
+    <p class="dates">What the field has converged on so far</p>
+
+    <h3>4.1 — Instrument at the right boundaries</h3>
+    <p>Every external tool call (API, database, MCP server, search) gets its own span: name, redacted inputs, latency, status, error if any. The agent's own reasoning or planning step gets a span too, if the framework exposes it — that's what lets you answer "why did it pick that tool" after the fact. One root trace per agent run, always — never let a multi-step agent's work land as a flat list of unconnected events.</p>
+
+    <h3>4.2 — Follow the semantic conventions; don't invent your own</h3>
+    <p>Using <code>gen_ai.*</code> attribute names (or your platform's direct equivalent) keeps traces portable if you ever switch backend. Rolling your own attribute names is the single most common reason teams get stuck on one vendor.</p>
+
+    <h3>4.3 — Redact before you export, not after</h3>
+    <p>Prompts and tool payloads often carry secrets or personal data. Redact at the instrumentation layer. Once something has landed in a third-party backend, removing it is a much bigger job than never sending it.</p>
+
+    <h3>4.4 — Propagate context across the whole trace</h3>
+    <p>Attributes like user ID or session ID need to be attached to every span in a trace, not only the root span, or you can't filter and aggregate by them later. OpenTelemetry <strong style="color:var(--ink)">Baggage</strong> is the standard mechanism for this — set it once, and it copies to every span in the trace context automatically.</p>
+
+    <h3>4.5 — Keep emit, store, and judge as three separate jobs</h3>
+    <p>Don't let the instrumentation SDK, the storage backend, and the evaluation logic become one tangled thing. Keep the OTel/OpenLLMetry emission layer swappable, keep the backend swappable, and add evaluation as a layer on top once real traces exist to test it against — in that order.</p>
+
+    <h3>4.6 — Metrics are a view over traces, not a separate thing to log twice</h3>
+    <p>Compute latency percentiles, cost per run, and tool success rate from the trace data itself. Logging the same numbers twice, in two different systems, is how dashboards and traces quietly drift apart from each other.</p>
+
+    <h3>4.7 — Sample deliberately once volume grows</h3>
+    <div class="callout teal">
+      <span class="label">Rule of thumb</span>
+      <p>At low volume, trace everything. Once an agent is handling real production traffic, decide a sampling strategy on purpose — always keep traces with errors or low eval scores, sample the rest — rather than accidentally dropping the interesting 1% along with the boring 99%.</p>
+    </div>
+  </section>
+
+  <!-- ============ PART 05 — HOW TO BUILD IT ============ -->
+  <section class="part" id="p5">
+    <div class="part-tag"><span class="num">Part 05</span> · Execution</div>
+    <h2>How to build it, step by step</h2>
+    <p class="dates">A generic sequence — works for any agent, any framework</p>
+
+    <figure>
+      <svg viewBox="0 0 1060 320" xmlns="http://www.w3.org/2000/svg">
+        <!-- Box 1 -->
+        <rect x="20" y="110" width="170" height="80" rx="12" fill="#161B26" stroke="#99A2B8" stroke-width="1.4"/>
+        <text x="105" y="145" text-anchor="middle" font-family="Space Grotesk" font-weight="700" font-size="13.5" fill="#E7EAF0">Agent Code</text>
+        <text x="105" y="163" text-anchor="middle" font-family="JetBrains Mono" font-size="9.5" fill="#99A2B8">LLM calls · tool calls</text>
+        <text x="105" y="176" text-anchor="middle" font-family="JetBrains Mono" font-size="9.5" fill="#99A2B8">MCP servers</text>
+
+        <!-- Arrow 1 -->
+        <line x1="190" y1="150" x2="230" y2="150" stroke="#5C6478" stroke-width="1.4"/>
+        <path d="M 224 145 L 234 150 L 224 155 Z" fill="#5C6478"/>
+        <text x="210" y="138" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#5C6478">spans</text>
+
+        <!-- Box 2 -->
+        <rect x="230" y="110" width="210" height="80" rx="12" fill="#161B26" stroke="#4FD6C4" stroke-width="1.4"/>
+        <text x="335" y="145" text-anchor="middle" font-family="Space Grotesk" font-weight="700" font-size="13.5" fill="#4FD6C4">Instrumentation SDK</text>
+        <text x="335" y="163" text-anchor="middle" font-family="JetBrains Mono" font-size="9.5" fill="#99A2B8">OpenTelemetry</text>
+        <text x="335" y="176" text-anchor="middle" font-family="JetBrains Mono" font-size="9.5" fill="#99A2B8">OpenLLMetry</text>
+
+        <!-- Arrow 2 -->
+        <line x1="440" y1="150" x2="480" y2="150" stroke="#5C6478" stroke-width="1.4"/>
+        <path d="M 474 145 L 484 150 L 474 155 Z" fill="#5C6478"/>
+        <text x="460" y="138" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#5C6478">OTLP</text>
+
+        <!-- Box 3 -->
+        <rect x="480" y="110" width="280" height="80" rx="12" fill="#161B26" stroke="#9C8CF2" stroke-width="1.4"/>
+        <text x="620" y="140" text-anchor="middle" font-family="Space Grotesk" font-weight="700" font-size="13.5" fill="#9C8CF2">Backend</text>
+        <text x="620" y="158" text-anchor="middle" font-family="JetBrains Mono" font-size="9.5" fill="#99A2B8">Langfuse · MLflow</text>
+        <text x="620" y="171" text-anchor="middle" font-family="JetBrains Mono" font-size="9.5" fill="#99A2B8">Phoenix · OpenObserve</text>
+
+        <!-- Arrow 3 -->
+        <line x1="760" y1="150" x2="800" y2="150" stroke="#5C6478" stroke-width="1.4"/>
+        <path d="M 794 145 L 804 150 L 794 155 Z" fill="#5C6478"/>
+        <text x="780" y="138" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#5C6478">query</text>
+
+        <!-- Box 4 -->
+        <rect x="800" y="110" width="230" height="80" rx="12" fill="#161B26" stroke="#F2708A" stroke-width="1.4"/>
+        <text x="915" y="145" text-anchor="middle" font-family="Space Grotesk" font-weight="700" font-size="13.5" fill="#F2708A">Dashboards</text>
+        <text x="915" y="163" text-anchor="middle" font-family="JetBrains Mono" font-size="9.5" fill="#99A2B8">+ eval scoring loop</text>
+
+        <!-- Feedback arc -->
+        <path d="M 915 190 C 915 260, 105 260, 105 190" fill="none" stroke="#5C6478" stroke-width="1.3" stroke-dasharray="5 4"/>
+        <path d="M 100 198 L 105 186 L 112 197 Z" fill="#5C6478"/>
+        <text x="510" y="278" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#99A2B8">regression datasets → next prompt / model change</text>
+      </svg>
+      <figcaption>Figure 5.1 — The instrumentation pipeline. Backend-agnostic until step 3 — that's the point.</figcaption>
+    </figure>
+
+    <ol class="steps">
+      <li><span class="n">01</span><span class="t"><strong>Pick the instrumentation SDK first, not the backend.</strong> OpenLLMetry, or your framework's built-in OTel support — this keeps you unlocked from any specific backend before you've even chosen one.</span></li>
+      <li><span class="n">02</span><span class="t"><strong>Wrap every tool call and LLM call in a span</strong> at the point it happens in code — usually a decorator or context manager, rarely a rewrite.</span></li>
+      <li><span class="n">03</span><span class="t"><strong>Give every agent run one root trace</strong>, and propagate session/user attributes as OTel Baggage so they land on every child span, not just the first one.</span></li>
+      <li><span class="n">04</span><span class="t"><strong>Export via OTLP</strong> to the backend you chose in Part 03.</span></li>
+      <li><span class="n">05</span><span class="t"><strong>Build three or four dashboards</strong> from the trace data: latency percentiles, cost per run, tool success rate, retry/loop count. Resist building more than that at first.</span></li>
+      <li><span class="n">06</span><span class="t"><strong>Add evaluation last</strong> — attach an LLM-as-judge or rule-based score once real production traces exist to validate the judge against, not before.</span></li>
+      <li><span class="n">07</span><span class="t"><strong>Close the loop</strong> — use eval scores to find the traces worth turning into regression test cases, so the next prompt or model change gets checked against real past failures.</span></li>
+    </ol>
+  </section>
+
+  <!-- ============ PART 06 — WHAT'S STILL UNSETTLED ============ -->
+  <section class="part" id="p6">
+    <div class="part-tag"><span class="num">Part 06</span> · Outlook</div>
+    <h2>What's still unsettled</h2>
+    <p class="dates">Mid-2026, and probably true for another year or two</p>
+
+    <div class="callout violet">
+      <span class="label">Still experimental</span>
+      <p>Agent-specific OTel conventions — multi-agent tasks, actions, handoffs, memory — are still experimental as of mid-2026. Expect the attribute names in this exact space to keep changing.</p>
+    </div>
+    <div class="callout amber">
+      <span class="label">Two standards, converging but not merged</span>
+      <p>MCP-level tracing conventions are being worked out alongside the LLM-call conventions, since tool calls through MCP are now as common a span type as the LLM call itself — and OpenInference and OTel's own namespace are still mid-convergence, not fully unified.</p>
+    </div>
+    <div class="callout rose">
+      <span class="label">The market is forking, not settling</span>
+      <p>Langfuse consolidating into ClickHouse (Jan 2026) and agent-native entrants like Laminar arguing the first generation's data model doesn't fit agent-shaped traffic are both happening at once — expect more architectural forks like this over the next year, not fewer.</p>
+    </div>
+    <p>The practical takeaway from all of this: build on the open standard (OTel GenAI conventions) rather than a single vendor's proprietary attribute set, and keep raw traces queryable rather than only charting the dashboards you thought to build in advance. That's the whole idea behind Observability 2.0 — you rarely know ahead of time which question you'll need to ask.</p>
+  </section>
+
+  <!-- ============ PART 07 — RESOURCES & GLOSSARY ============ -->
+  <section class="part" id="p7">
+    <div class="part-tag"><span class="num">Part 07</span> · Reference</div>
+    <h2>Resources &amp; glossary</h2>
+    <p class="dates">Where to go deeper</p>
+
+    <h3>Further reading</h3>
+    <ul>
+      <li><strong style="color:var(--ink)">OpenTelemetry GenAI semantic conventions</strong> — opentelemetry.io/docs/specs/semconv/gen-ai/ — the spec itself, read this first.</li>
+      <li><strong style="color:var(--ink)">Google's Dapper paper</strong> — research.google/pubs/pub36356 — short, and still the clearest explanation of why spans and traces are shaped the way they are.</li>
+      <li><strong style="color:var(--ink)">Langfuse docs</strong> — langfuse.com/docs — the most complete hands-on walkthrough of tracing and eval concepts together.</li>
+      <li><strong style="color:var(--ink)">MLflow Tracing Quickstart</strong> — mlflow.org — best starting point if you're already ML/Databricks-adjacent.</li>
+      <li><strong style="color:var(--ink)">OpenLLMetry</strong> — github.com/traceloop/openllmetry — for framework-agnostic instrumentation you can point at any backend.</li>
+      <li><strong style="color:var(--ink)">Chip Huyen, AI Engineering</strong> (O'Reilly) — the observability and evals chapter is one of the few book-length treatments that isn't tied to a single vendor.</li>
+    </ul>
+
+    <h3>Glossary</h3>
+    <dl class="glossary">
+      <dt>trace</dt><dd>Everything that happened during one agent run, start to finish.</dd>
+      <dt>span</dt><dd>One timed, named unit of work inside a trace — an LLM call, a tool call, a retrieval step. Spans nest.</dd>
+      <dt>generation</dt><dd>A span specialized for an LLM call — carries prompt, completion, model params, tokens, and cost.</dd>
+      <dt>session</dt><dd>A group of traces belonging to the same conversation or user.</dd>
+      <dt>OTLP</dt><dd>OpenTelemetry Protocol — the vendor-neutral wire format traces are exported in.</dd>
+      <dt>semantic convention</dt><dd>An agreed-on, standard name and meaning for a telemetry attribute (e.g. <code>gen_ai.request.model</code>), so different tools' output means the same thing.</dd>
+      <dt>sampling</dt><dd>Deliberately keeping only a subset of traces (e.g. all errors + a random sample of the rest) once volume makes tracing everything impractical.</dd>
+      <dt>LLM-as-judge</dt><dd>Using a separate model call to score whether a trace's output met some quality bar, instead of (or alongside) a human or rule-based check.</dd>
+      <dt>guardrail</dt><dd>An evaluation check placed in the critical path of a live request — able to block, retry, or fall back — rather than only run after the fact for monitoring.</dd>
+    </dl>
+  </section>
+
+  <footer>
+    Built as a stack-agnostic reference — not tied to any specific project or vendor stack. Facts and dates checked against primary sources current as of July 2026.
+  </footer>
+
+</div>
+</body>
+</html>
