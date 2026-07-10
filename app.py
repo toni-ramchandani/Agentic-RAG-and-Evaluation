@@ -27,6 +27,7 @@ from rich.panel import Panel
 from rich.prompt import Prompt
 from sentence_transformers import SentenceTransformer
 
+from agent_execution import AgentExecution
 from tools import TOOL_REGISTRY
 
 load_dotenv()
@@ -65,7 +66,6 @@ def extract_order_id(text: str) -> str | None:
 
 def is_support_ticket_request(text: str) -> bool:
     lower = text.lower()
-
     ticket_keywords = [
         "damaged",
         "broken",
@@ -80,13 +80,10 @@ def is_support_ticket_request(text: str) -> bool:
         "support ticket",
         "complaint",
     ]
-
     return any(keyword in lower for keyword in ticket_keywords)
 
 
 class AgentAction(BaseModel):
-    """Structured action selected by the local Ollama router."""
-
     action: Literal[
         "answer_directly",
         "create_support_ticket",
@@ -99,8 +96,6 @@ class AgentAction(BaseModel):
 
 
 class LLMProvider(ABC):
-    """Abstract interface for all LLM providers."""
-
     @abstractmethod
     def generate_response(
         self,
@@ -115,8 +110,6 @@ class LLMProvider(ABC):
 
 
 class OpenAIProvider(LLMProvider):
-    """OpenAI implementation using Responses API and optional file_search."""
-
     def __init__(self) -> None:
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
@@ -166,21 +159,17 @@ class OpenAIProvider(LLMProvider):
 
     def _messages_to_input(self, messages: list[dict[str, str]]) -> list[dict[str, Any]]:
         converted: list[dict[str, Any]] = []
-
         for message in messages:
             role = message["role"]
             content = message["content"]
-
             if role not in {"system", "user", "assistant"}:
                 role = "user"
-
             converted.append(
                 {
                     "role": role,
                     "content": [{"type": "input_text", "text": content}],
                 }
             )
-
         return converted
 
     def generate_response(
@@ -235,13 +224,10 @@ class OpenAIProvider(LLMProvider):
         return final_text, tool_calls
 
     def search_knowledge_base(self, query: str) -> str:
-        # In OpenAI mode, file_search is handled by the Responses API tool.
         return ""
 
 
 class OllamaProvider(LLMProvider):
-    """Ollama implementation with ChromaDB retrieval and deterministic routing."""
-
     def __init__(self) -> None:
         self.model = os.getenv("OLLAMA_MODEL", "llama3.2:latest")
         self.base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
@@ -249,7 +235,6 @@ class OllamaProvider(LLMProvider):
         self.collection_name = os.getenv("CHROMA_COLLECTION", "support_docs")
 
         self.client = ollama.Client(host=self.base_url)
-
         self.embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
         self.chroma_client = chromadb.PersistentClient(path=self.chroma_persist_dir)
 
@@ -289,7 +274,6 @@ class OllamaProvider(LLMProvider):
             return ""
 
         context_parts: list[str] = []
-
         for document, metadata, distance in zip(documents, metadatas, distances):
             source = metadata.get("source", "unknown") if metadata else "unknown"
             context_parts.append(
@@ -314,7 +298,6 @@ class OllamaProvider(LLMProvider):
             return ""
 
         context_parts: list[str] = []
-
         for document, metadata in zip(documents, metadatas):
             source = metadata.get("source", "unknown") if metadata else "unknown"
             chunk = metadata.get("chunk", "unknown") if metadata else "unknown"
@@ -340,16 +323,13 @@ class OllamaProvider(LLMProvider):
             if not action.order_id:
                 return "Please share your order ID so I can create a support ticket.", []
 
-            issue_type = action.issue_type or "other"
-            summary = action.summary or last_user_message
-
             return "", [
                 {
                     "name": "create_support_ticket",
                     "arguments": {
-                        "issue_type": issue_type,
+                        "issue_type": action.issue_type or "other",
                         "order_id": action.order_id,
-                        "summary": summary,
+                        "summary": action.summary or last_user_message,
                     },
                 }
             ]
@@ -481,7 +461,6 @@ Return JSON with this schema:
     def _fallback_route(self, user_message: str) -> AgentAction:
         text = user_message.strip()
         lower = text.lower()
-
         order_id = extract_order_id(text)
 
         policy_keywords = [
@@ -581,7 +560,6 @@ Return JSON with this schema:
     @staticmethod
     def _parse_json_object(text: str) -> dict[str, Any] | None:
         cleaned = text.strip()
-
         cleaned = re.sub(r"^```(?:json)?", "", cleaned, flags=re.IGNORECASE).strip()
         cleaned = re.sub(r"```$", "", cleaned).strip()
 
@@ -608,15 +586,13 @@ Return JSON with this schema:
 
 
 class OrderSupportAgent:
-    """Main agent orchestrator."""
-
     def __init__(self) -> None:
-        provider_name = os.getenv("LLM_PROVIDER", "ollama").strip().lower()
+        self.provider_name = os.getenv("LLM_PROVIDER", "ollama").strip().lower()
 
-        if provider_name == "openai":
+        if self.provider_name == "openai":
             console.print("[bold blue]Using OpenAI[/bold blue]")
             self.provider: LLMProvider = OpenAIProvider()
-        elif provider_name == "ollama":
+        elif self.provider_name == "ollama":
             console.print("[bold green]Using Ollama (Local LLM)[/bold green]")
             self.provider = OllamaProvider()
             console.print(
@@ -624,7 +600,7 @@ class OrderSupportAgent:
             )
         else:
             raise ValueError(
-                f"Unsupported LLM_PROVIDER={provider_name!r}. Use 'openai' or 'ollama'."
+                f"Unsupported LLM_PROVIDER={self.provider_name!r}. Use 'openai' or 'ollama'."
             )
 
         self.conversation_history: list[dict[str, str]] = [
@@ -632,104 +608,184 @@ class OrderSupportAgent:
         ]
 
     def ask(self, user_input: str) -> str:
-        self.conversation_history.append({"role": "user", "content": user_input})
+        execution = AgentExecution(
+            user_input=user_input,
+            provider=self.provider_name,
+            model=getattr(self.provider, "model", None),
+        )
 
-        order_id = extract_order_id(user_input)
+        try:
+            step = execution.start_step("input_received", input={"user_input": user_input})
+            self.conversation_history.append({"role": "user", "content": user_input})
+            step.finish(output={"history_length": len(self.conversation_history)})
 
-        if (
-            isinstance(self.provider, OllamaProvider)
-            and order_id
-            and not is_support_ticket_request(user_input)
-        ):
-            knowledge_context = self.provider.search_knowledge_base(user_input)
+            step = execution.start_step("order_id_extraction", input={"text": user_input})
+            order_id = extract_order_id(user_input)
+            step.finish(output={"order_id": order_id})
 
-            if not knowledge_context or order_id not in knowledge_context.upper():
-                final_response = (
-                    f"I could not find order {order_id} in the knowledge base."
+            step = execution.start_step("ticket_request_detection", input={"text": user_input})
+            support_ticket_request = is_support_ticket_request(user_input)
+            step.finish(output={"is_support_ticket_request": support_ticket_request})
+
+            if (
+                isinstance(self.provider, OllamaProvider)
+                and order_id
+                and not support_ticket_request
+            ):
+                step = execution.start_step(
+                    "direct_order_status_path",
+                    input={"order_id": order_id},
+                    metadata={"reason": "order_id_present_and_not_ticket_request"},
                 )
-                self.conversation_history.append(
-                    {"role": "assistant", "content": final_response}
-                )
-                return final_response
-
-            final_response = self.provider._generate_final_answer(
-                self.conversation_history,
-                knowledge_context=knowledge_context,
-            )
-
-            self.conversation_history.append(
-                {"role": "assistant", "content": final_response}
-            )
-            return final_response
-
-        max_iterations = 5
-
-        for _ in range(max_iterations):
-            knowledge_context = self.provider.search_knowledge_base(user_input)
-
-            response_text, tool_calls = self.provider.generate_response(
-                self.conversation_history,
-                knowledge_context=knowledge_context,
-            )
-
-            if not tool_calls:
-                final_response = response_text.strip() or (
-                    "I could not generate a response. Please try again."
-                )
-                self.conversation_history.append(
-                    {"role": "assistant", "content": final_response}
-                )
-                return final_response
-
-            for tool_call in tool_calls:
-                tool_name = tool_call.get("name")
-                arguments = tool_call.get("arguments", {})
-
-                if tool_name not in TOOL_REGISTRY:
-                    tool_result = {
-                        "error": f"Unknown tool: {tool_name}",
+                knowledge_context = self.provider.search_knowledge_base(user_input)
+                step.finish(
+                    output={
+                        "context_found": bool(knowledge_context),
+                        "contains_order_id": bool(
+                            knowledge_context and order_id in knowledge_context.upper()
+                        ),
                     }
-                else:
-                    try:
-                        tool_result = TOOL_REGISTRY[tool_name](**arguments)
-                    except Exception as exc:
-                        tool_result = {
-                            "error": str(exc),
-                            "tool": tool_name,
+                )
+
+                if not knowledge_context or order_id not in knowledge_context.upper():
+                    final_response = (
+                        f"I could not find order {order_id} in the knowledge base."
+                    )
+                    self.conversation_history.append(
+                        {"role": "assistant", "content": final_response}
+                    )
+                    execution.finish(final_answer=final_response)
+                    return final_response
+
+                step = execution.start_step(
+                    "llm_final_answer",
+                    metadata={"path": "direct_order_status_path"},
+                )
+                final_response = self.provider._generate_final_answer(
+                    self.conversation_history,
+                    knowledge_context=knowledge_context,
+                )
+                step.finish(output={"answer_length": len(final_response)})
+
+                self.conversation_history.append(
+                    {"role": "assistant", "content": final_response}
+                )
+                execution.finish(final_answer=final_response)
+                return final_response
+
+            max_iterations = 5
+
+            for iteration in range(max_iterations):
+                step = execution.start_step(
+                    "knowledge_base_search",
+                    input={"query": user_input},
+                    metadata={"iteration": iteration + 1},
+                )
+                knowledge_context = self.provider.search_knowledge_base(user_input)
+                step.finish(
+                    output={
+                        "context_found": bool(knowledge_context),
+                        "context_length": len(knowledge_context),
+                    }
+                )
+
+                step = execution.start_step(
+                    "provider_generate_response",
+                    metadata={"iteration": iteration + 1},
+                )
+                response_text, tool_calls = self.provider.generate_response(
+                    self.conversation_history,
+                    knowledge_context=knowledge_context,
+                )
+                step.finish(
+                    output={
+                        "response_length": len(response_text),
+                        "tool_call_count": len(tool_calls),
+                        "tool_names": [call.get("name") for call in tool_calls],
+                    }
+                )
+
+                if not tool_calls:
+                    final_response = response_text.strip() or (
+                        "I could not generate a response. Please try again."
+                    )
+                    self.conversation_history.append(
+                        {"role": "assistant", "content": final_response}
+                    )
+                    execution.finish(final_answer=final_response)
+                    return final_response
+
+                for tool_call in tool_calls:
+                    tool_name = tool_call.get("name")
+                    arguments = tool_call.get("arguments", {})
+
+                    step = execution.start_step(
+                        "tool_execution",
+                        input={
+                            "tool_name": tool_name,
                             "arguments": arguments,
-                        }
+                        },
+                    )
 
-                self.conversation_history.append(
-                    {
-                        "role": "system",
-                        "content": (
-                            "Tool result: "
-                            + json.dumps(
-                                {
-                                    "tool": tool_name,
-                                    "arguments": arguments,
-                                    "result": tool_result,
-                                },
-                                ensure_ascii=False,
+                    if tool_name not in TOOL_REGISTRY:
+                        tool_result = {"error": f"Unknown tool: {tool_name}"}
+                        step.finish(output={"result": tool_result}, status="error")
+                    else:
+                        try:
+                            tool_result = TOOL_REGISTRY[tool_name](**arguments)
+                            step.finish(output={"result": tool_result})
+                        except Exception as exc:
+                            tool_result = {
+                                "error": str(exc),
+                                "tool": tool_name,
+                                "arguments": arguments,
+                            }
+                            step.finish(
+                                output={"result": tool_result},
+                                status="error",
+                                error=str(exc),
                             )
-                        ),
-                    }
-                )
 
-                self.conversation_history.append(
-                    {
-                        "role": "system",
-                        "content": (
-                            "The tool has already been executed. "
-                            "Now answer the user using the tool result above. "
-                            "Do not call the same tool again."
-                        ),
-                    }
-                )
+                    self.conversation_history.append(
+                        {
+                            "role": "system",
+                            "content": (
+                                "Tool result: "
+                                + json.dumps(
+                                    {
+                                        "tool": tool_name,
+                                        "arguments": arguments,
+                                        "result": tool_result,
+                                    },
+                                    ensure_ascii=False,
+                                )
+                            ),
+                        }
+                    )
 
-        fallback = "I apologize, but I could not complete the request after multiple attempts."
-        self.conversation_history.append({"role": "assistant", "content": fallback})
-        return fallback
+                    self.conversation_history.append(
+                        {
+                            "role": "system",
+                            "content": (
+                                "The tool has already been executed. "
+                                "Now answer the user using the tool result above. "
+                                "Do not call the same tool again."
+                            ),
+                        }
+                    )
+
+            fallback = "I apologize, but I could not complete the request after multiple attempts."
+            self.conversation_history.append({"role": "assistant", "content": fallback})
+            execution.finish(final_answer=fallback, status="error")
+            return fallback
+
+        except Exception as exc:
+            execution.finish(status="error", error=str(exc))
+            raise
+
+        finally:
+            trace_path = execution.save()
+            console.print(f"[dim]Trace saved: {trace_path}[/dim]")
 
     def reset(self) -> None:
         self.conversation_history = [{"role": "system", "content": SYSTEM_PROMPT}]
